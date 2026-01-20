@@ -9,7 +9,7 @@ using namespace std;
 //#define GLEW_STATIC
 
 int width = 400;
-int height = 300;
+int height = 400;
 unsigned int center = 0;
 SDL_Window* Window = nullptr;
 SDL_GLContext Context;
@@ -27,6 +27,10 @@ void DeInitOpenGL();
 void Shader();
 
 bool CompileShaderWithLog(unsigned int shader);
+
+float posX = 0.5f, posY = 0.0f;
+float dirX = 1.0f, dirY = 1.0f;
+float scale = 0.25f;
 
 //Describe the shape by its vertices
 
@@ -161,16 +165,34 @@ void Loop()
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
 
-		glUseProgram(shaderProgram);
-		glBindVertexArray(vao);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, 10);
+		posX += dirX * 0.004f;
+		posY += dirY * 0.003f;
 
-		float timeValue = sin((float)SDL_GetTicks() / 1000);
+		if (posX > 1 - scale && dirX > 0)
+		{
+			dirX = -dirX;
+		}
+		else if (posX < -1 + scale && dirX < 0)
+		{
+			dirX = -dirX;
+		}
+
+		if (posY > 1 - scale && dirY > 0)
+		{
+			dirY = -dirY;
+		}
+		else if (posY < -1 + scale && dirY < 0)
+		{
+			dirY = -dirY;
+		}
 
 		int offsetLocation = glGetUniformLocation(shaderProgram, "offset");
+		int scaleLocation = glGetUniformLocation(shaderProgram, "scale");
 		glUseProgram(shaderProgram);
-		glUniform3f(offsetLocation, timeValue, 0.0f, 0.0f);
+		glUniform3f(offsetLocation, posX, posY, 0.0f);
+		glUniform3f(scaleLocation, scale, scale, scale);
 
+		glDrawArrays(GL_TRIANGLE_FAN, 0, 10);
 
 		SDL_GL_SwapWindow(Window); // Swapbuffer
 

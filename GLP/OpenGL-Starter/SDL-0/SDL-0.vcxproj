@@ -83,13 +83,25 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Object.cpp" />
+    <ClCompile Include="RendererGL.cpp" />
+    <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShaderFiles.cpp" />
+    <ClCompile Include="ShaderProgram.cpp" />
+    <ClCompile Include="VertexArray.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Object.h" />
+    <ClInclude Include="RendererGL.h" />
+    <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderFiles.h" />
+    <ClInclude Include="ShaderProgram.h" />
+    <ClInclude Include="VertexArray.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment.shader" />
+    <None Include="fragment2.shader" />
+    <None Include="vertex 2.shader" />
     <None Include="vertex.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -3,6 +3,8 @@
 #include <glew.h>
 using namespace std;
 
+#include "RendererGL.h"
+#include "VertexArray.h"
 #include "ShaderFiles.h"
 #include <vector>
 
@@ -12,21 +14,15 @@ int width = 400;
 int height = 400;
 unsigned int center = 0;
 SDL_Window* Window = nullptr;
-SDL_GLContext Context;
+RendererGl* Renderer = nullptr;
 bool isRunning = true;
 
-unsigned int vbo;
-unsigned int vao;
-unsigned int vertexShader;
-unsigned int fragmentShader;
-unsigned int shaderProgram;
+ShaderProgram* mShaderProgram1 = nullptr;
+ShaderProgram* mShaderProgram2 = nullptr;
 
 void InitOpenGL();
 void Loop();
 void DeInitOpenGL();
-void Shader();
-
-bool CompileShaderWithLog(unsigned int shader);
 
 float posX = 0.5f, posY = 0.0f;
 float dirX = 1.0f, dirY = 1.0f;
@@ -37,19 +33,32 @@ float scale = 0.25f;
 #define LIGHTBLUE 0.2f, 0.5f, 0.9f
 #define DARKBLUE 0.35f, 0.6f, 1.0f
 
-float vertices[] = {
+float PrimoVertices[] = {
 		// positions			// colors
-		 0.0f, -0.0f, 0.0f,		1.0f , 0.9f , 0.95f ,	//a
-		 0.0f, -1.0f, 0.0f,		LIGHTBLUE,				//b
-		 0.3f, -0.3f, 0.0f,		DARKBLUE ,				//c
-		 1.0f,  0.0f, 0.0f,		LIGHTBLUE,				//d
-		 0.3f,  0.3f, 0.0f,		DARKBLUE ,				//e
-		 0.0f,  1.0f, 0.0f,		1.0f , 0.70f, 0.60f,	//f
-		-0.3f,  0.3f, 0.0f,		1.0f , 0.8f , 0.9f ,	//g
-		-1.0f,  0.0f, 0.0f,		1.0f , 0.9f , 0.9f ,	//h
-		-0.3f, -0.3f, 0.0f,		DARKBLUE ,				//i
-		 0.0f, -1.0f, 0.0f,		LIGHTBLUE,				//j
+		 0.0f, -0.0f, 0.0f,		1.0f , 0.9f , 0.95f ,	//a 0
+		 0.0f, -1.0f, 0.0f,		LIGHTBLUE,				//b 1
+		 0.3f, -0.3f, 0.0f,		DARKBLUE ,				//c 2
+		 1.0f,  0.0f, 0.0f,		LIGHTBLUE,				//d 3
+		 0.3f,  0.3f, 0.0f,		DARKBLUE ,				//e 4
+		 0.0f,  1.0f, 0.0f,		1.0f , 0.70f, 0.60f,	//f 5
+		-0.3f,  0.3f, 0.0f,		1.0f , 0.8f , 0.9f ,	//g 6
+		-1.0f,  0.0f, 0.0f,		1.0f , 0.9f , 0.9f ,	//h 7
+		-0.3f, -0.3f, 0.0f,		DARKBLUE ,				//i 8
+		 0.0f, -1.0f, 0.0f,		LIGHTBLUE,				//j 9
 };
+
+unsigned int PrimoIndices[] = {
+	0,1,2,
+	0,2,3,
+	0,3,4,
+	0,4,5,
+	0,5,6,
+	0,6,7,
+	0,7,8,
+	0,8,9,
+	0,9,1
+};
+
 
 int main(int argc, char* argv[])
 {
@@ -62,91 +71,11 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-void Shader() 
-{
-	//Pass how many buffers should be created and the reference of the ID to get the value set
-	glGenBuffers(1, &vbo);
-
-	//Create one ID to be given at object generation
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
-	//Binds the buffer linked to this ID to the vertex array buffer to be rendered. Put 0 instead of vbo to reset the value.
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-	//Finally send the vertices array in the array buffer 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	// Position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-
-	//Shaders
-	std::string vs = ShaderFiles::ReadFile("vertex.shader");
-	const char* vertexShaderSource = vs.c_str();
-
-	std::string fs = ShaderFiles::ReadFile("fragment.shader");
-	const char* fragmentShaderSource = fs.c_str();
-
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	CompileShaderWithLog(vertexShader);
-
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	CompileShaderWithLog(fragmentShader);
-
-	shaderProgram = glCreateProgram();
-
-	//now that the program is complete, we can use it 
-	glUseProgram(shaderProgram);
-
-	//now attach shaders to use to the program
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-
-	//and link it 
-	glLinkProgram(shaderProgram);
-
-	//Shader to use next
-	glUseProgram(shaderProgram);
-
-	//VAO to use next
-	glBindVertexArray(vao);
-}
-
-bool CompileShaderWithLog(unsigned int shader)
-{
-	int retValue;
-	glCompileShader(vertexShader);
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &retValue);
-	if (!retValue)
-	{
-		GLint len = 0;
-		glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &len);
-		std::vector <GLchar>log(len);
-
-		glGetShaderInfoLog(vertexShader, len, nullptr, log.data());
-		cout << log.data() << endl;
-
-		return false;
-	}
-
-	cout << "Compiled shader with no error" << endl;
-
-	return true;
-}
-
 void DeInitOpenGL()
 {
 	// Quit
 	SDL_DestroyWindow(Window);
-	SDL_GL_DeleteContext(Context);
+	Renderer->Close();
 }
 
 void Loop()
@@ -163,7 +92,6 @@ void Loop()
 				break;
 			}
 		}
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
 
 		posX += dirX * 0.004f;
 		posY += dirY * 0.003f;
@@ -186,16 +114,11 @@ void Loop()
 			dirY = -dirY;
 		}
 
-		int offsetLocation = glGetUniformLocation(shaderProgram, "offset");
-		int scaleLocation = glGetUniformLocation(shaderProgram, "scale");
-		glUseProgram(shaderProgram);
-		glUniform3f(offsetLocation, posX, posY, 0.0f);
-		glUniform3f(scaleLocation, scale, scale, scale);
+		Renderer->BeginDraw();
 
-		glDrawArrays(GL_TRIANGLE_FAN, 0, 10);
+		Renderer->Draw();
 
-		SDL_GL_SwapWindow(Window); // Swapbuffer
-
+		Renderer->EndDraw();
 	}
 }
 
@@ -215,28 +138,35 @@ void InitOpenGL()
 	Window = SDL_CreateWindow("My window", center, center, width, height, SDL_WINDOW_OPENGL);
 	//SDL_WINDOW_OPENGL is a u32 flag !
 
+	Renderer = new RendererGl();
+	Renderer->Initialize(Window);
 
-	//Create an OpenGL compatible context to let glew draw on it
-	Context = SDL_GL_CreateContext(Window);
+	Shader* vertex = new Shader();
+	vertex->Load("vertex.shader", VERTEX);
 
-	/////////SETTING UP OPENGL WITH GLEW///
-	//Initialize glew
-	glewExperimental = GL_TRUE;
-	if (glewInit() == GLEW_OK) {
-		cout << "Glew initialized successfully\n";
-	}
+	Shader* fragment = new Shader();
+	fragment->Load("fragment.shader", FRAGMENT);
 
-	//Set the viewing frame through which we will see the objects
-	glViewport(0, 0, width, height);
+	mShaderProgram1 = new ShaderProgram();
+	mShaderProgram1->Compose({ vertex, fragment });
 
-	//Put the color you want here for the background
-	glClearColor(0.0f, 0.0f, 0.2f, 1.0f);
+	VertexArray* simple = new VertexArray(vertices, 4, indices, 6, false);
+	Object* object1 = new Object(simple, mShaderProgram1);
+	
+	Renderer->AddObject(object1);
+	
+	//Shader* vertex2 = new Shader();
+	//vertex2->Load("vertex2.shader", VERTEX);
 
-	//Use depth management
-	glEnable(GL_DEPTH_TEST);
+	//Shader* fragment2 = new Shader();
+	//fragment2->Load("fragment2.shader", FRAGMENT);
 
-	//0 is our origin, the higher the z, the farther the object
-	glDepthFunc(GL_LESS);
+	//mShaderProgram2 = new ShaderProgram();
+	//mShaderProgram2->Compose({ vertex2, fragment2 });
 
-	Shader();
+	//VertexArray* primo = new VertexArray(PrimoVertices, 10, PrimoIndices, 9, true);
+	
+	//Object* object2 = new Object(primo, mShaderProgram1);
+
+	//Renderer->AddObject(object2);
 }

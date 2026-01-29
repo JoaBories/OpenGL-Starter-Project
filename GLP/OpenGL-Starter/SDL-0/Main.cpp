@@ -1,10 +1,12 @@
 ﻿#include <iostream>
+#include <vector>
 #include <SDL.h>
 #include <glew.h>
 using namespace std;
 
-#include "ShaderFiles.h"
-#include <vector>
+#include "Shader.h"
+#include "VertexArray.h"
+#include "image.h"
 
 //#define GLEW_STATIC
 
@@ -15,18 +17,22 @@ SDL_Window* Window = nullptr;
 SDL_GLContext Context;
 bool isRunning = true;
 
-unsigned int vbo;
-unsigned int vao;
-unsigned int vertexShader;
-unsigned int fragmentShader;
-unsigned int shaderProgram;
+VertexArray* myVa1 = nullptr;
+VertexArray* myVa2 = nullptr;
+Shader* myShader1 = nullptr;
+Shader* myShader2 = nullptr;
+Shader* mySpriteShader = nullptr;
+
+Texture* myTexture = nullptr;
+
+unsigned int Vbo;
+unsigned int Vao;
+
 
 void InitOpenGL();
 void Loop();
 void DeInitOpenGL();
-void Shader();
-
-bool CompileShaderWithLog(unsigned int shader);
+void ShaderInit();
 
 float posX = 0.5f, posY = 0.0f;
 float dirX = 1.0f, dirY = 1.0f;
@@ -37,7 +43,7 @@ float scale = 0.25f;
 #define LIGHTBLUE 0.2f, 0.5f, 0.9f
 #define DARKBLUE 0.35f, 0.6f, 1.0f
 
-float vertices[] = {
+float primo[] = {
 		// positions			// colors
 		 0.0f, -0.0f, 0.0f,		1.0f , 0.9f , 0.95f ,	//a
 		 0.0f, -1.0f, 0.0f,		LIGHTBLUE,				//b
@@ -51,95 +57,51 @@ float vertices[] = {
 		 0.0f, -1.0f, 0.0f,		LIGHTBLUE,				//j
 };
 
+float triangle[] = {
+	// positions             // colors
+	 0.8f, -0.8f, 0.0f,  1.0f, 0.0f, 0.0f,
+	-0.8f, -0.8f, 0.0f,  0.0f, 1.0f, 0.0f,
+	 0.0f,  0.8f, 0.0f,  0.0f, 0.0f, 1.0f
+};
+
+constexpr float square[] = {
+	-0.5f, 0.5f, 0.0f,            0.0f, 0.0f,	//top left
+	0.5f, 0.5f, 0.0f,             1.0f, 0.0f,	//top right
+	0.5f, -0.5f, 0.0f,            1.0f, 1.0f,	//bottom right
+	-0.5f, -0.5f, 0.0f,           0.0f, 1.0f	//bottom left
+};
+
 int main(int argc, char* argv[])
 {
 	InitOpenGL();
-
 	Loop();
-
 	DeInitOpenGL();
-
 	return 0;
 }
 
-void Shader() 
+void ShaderInit() 
 {
-	//Pass how many buffers should be created and the reference of the ID to get the value set
-	glGenBuffers(1, &vbo);
+	myVa1 = new VertexArray(primo, 10);
+	myVa2 = new VertexArray(triangle, 3);
 
-	//Create one ID to be given at object generation
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
+	myShader1 = new Shader("vertex.shader", "fragment.shader");
+	myShader2 = new Shader("vertex2.shader", "fragment2.shader");
+	mySpriteShader = new Shader("SpriteVert.shader", "SpriteFrag.shader");
 
-	//Binds the buffer linked to this ID to the vertex array buffer to be rendered. Put 0 instead of vbo to reset the value.
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	//vao vbo for textured square
+	glGenBuffers(1, &Vbo);
+	glGenVertexArrays(1, &Vao);
+	glBindVertexArray(Vao);
+	glBindBuffer(GL_ARRAY_BUFFER, Vbo);
+	glBufferData(GL_ARRAY_BUFFER, 20 * sizeof(float), square, GL_STATIC_DRAW);
 
-	//Finally send the vertices array in the array buffer 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	// Position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-
-	// Color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (void*)0);
 	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (void*)(sizeof(float) * 3));
 
-
-	//Shaders
-	std::string vs = ShaderFiles::ReadFile("vertex.shader");
-	const char* vertexShaderSource = vs.c_str();
-
-	std::string fs = ShaderFiles::ReadFile("fragment.shader");
-	const char* fragmentShaderSource = fs.c_str();
-
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	CompileShaderWithLog(vertexShader);
-
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	CompileShaderWithLog(fragmentShader);
-
-	shaderProgram = glCreateProgram();
-
-	//now that the program is complete, we can use it 
-	glUseProgram(shaderProgram);
-
-	//now attach shaders to use to the program
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-
-	//and link it 
-	glLinkProgram(shaderProgram);
-
-	//Shader to use next
-	glUseProgram(shaderProgram);
-
-	//VAO to use next
-	glBindVertexArray(vao);
-}
-
-bool CompileShaderWithLog(unsigned int shader)
-{
-	int retValue;
-	glCompileShader(vertexShader);
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &retValue);
-	if (!retValue)
-	{
-		GLint len = 0;
-		glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &len);
-		std::vector <GLchar>log(len);
-
-		glGetShaderInfoLog(vertexShader, len, nullptr, log.data());
-		cout << log.data() << endl;
-
-		return false;
-	}
-
-	cout << "Compiled shader with no error" << endl;
-
-	return true;
+	myTexture = new Texture();
+	myTexture->Load("pokeball.png");
 }
 
 void DeInitOpenGL()
@@ -186,16 +148,32 @@ void Loop()
 			dirY = -dirY;
 		}
 
-		int offsetLocation = glGetUniformLocation(shaderProgram, "offset");
-		int scaleLocation = glGetUniformLocation(shaderProgram, "scale");
-		glUseProgram(shaderProgram);
-		glUniform3f(offsetLocation, posX, posY, 0.0f);
-		glUniform3f(scaleLocation, scale, scale, scale);
+		// Triangle ===========
+		myShader2->use();
+	
+		myVa2->Use();
+		glDrawArrays(GL_TRIANGLES, 0, myVa2->GetVerticeCount());
+		// ====================
+		
+		// Texture ============
+		mySpriteShader->use();
 
-		glDrawArrays(GL_TRIANGLE_FAN, 0, 10);
+		myTexture->SetActive();
+		glBindVertexArray(Vao);
+		glDrawArrays(GL_QUADS, 0, 4);
+		// ====================
+		
+		// Primo ==============
+		myShader1->use();
+		myShader1->setVec3("offset", posX, posY, 0.0f);
+		myShader1->setVec3("scale", scale, scale, scale);
+
+		myVa1->Use();
+		glDrawArrays(GL_TRIANGLE_FAN, 0, myVa1->GetVerticeCount());
+		// ====================
+		
 
 		SDL_GL_SwapWindow(Window); // Swapbuffer
-
 	}
 }
 
@@ -233,10 +211,10 @@ void InitOpenGL()
 	glClearColor(0.0f, 0.0f, 0.2f, 1.0f);
 
 	//Use depth management
-	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_DEPTH_TEST);
 
 	//0 is our origin, the higher the z, the farther the object
-	glDepthFunc(GL_LESS);
+	//glDepthFunc(GL_LESS);
 
-	Shader();
+	ShaderInit();
 }

@@ -62,7 +62,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\..\..\GL\SDL\lib\x86;$(SolutionDir)\..\..\glew-2.2.0-win32\glew-2.2.0\lib\Release\Win32;$(SolutionDir)\..\..\glew-2.2.0-win32\glew-2.2.0\bin\Release\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glu32.lib;glew32.lib;opengl32.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glu32.lib;glew32.lib;opengl32.lib;SDL2.lib;SDL2main.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -82,15 +82,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="image.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="ShaderFiles.cpp" />
+    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="VertexArray.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ShaderFiles.h" />
+    <ClInclude Include="image.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="VertexArray.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment.shader" />
+    <None Include="fragment2.shader" />
+    <None Include="SpriteFrag.shader" />
+    <None Include="SpriteVert.shader" />
     <None Include="vertex.shader" />
+    <None Include="vertex2.shader" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="pokeball.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
